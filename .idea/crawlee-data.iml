@@ -4,6 +4,7 @@
     <content url="file://$MODULE_DIR$/stage01/crawl">
       <excludeFolder url="file://$MODULE_DIR$/stage01/crawl/.venv" />
     </content>
+    <orderEntry type="jdk" jdkName="uv (crawl)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>
