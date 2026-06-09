@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crawlee-data"
+version = "1.0.0"
+description = "NLP data collection crawler based on Crawlee Python"
+requires-python = ">=3.11"
+
+dependencies = [
+    "crawlee>=1.0",
+    "playwright>=1.50",
+    "httpx>=0.28",
+    "parsel>=1.9",
+    "selectolax>=0.3",
+    "peewee>=3.17",
+    "pymysql>=1.1",
+    "DBUtils>=3.1",
+    "pydantic-settings>=2.0",
+    "loguru>=0.7",
+    "apscheduler>=3.10",
+    "tenacity>=8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.25",
+]
+
+[tool.setuptools.packages.find]
+include = ["crawlee_data*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

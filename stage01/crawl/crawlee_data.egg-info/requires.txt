@@ -1,0 +1,16 @@
+crawlee>=1.0
+playwright>=1.50
+httpx>=0.28
+parsel>=1.9
+selectolax>=0.3
+peewee>=3.17
+pymysql>=1.1
+DBUtils>=3.1
+pydantic-settings>=2.0
+loguru>=0.7
+apscheduler>=3.10
+tenacity>=8.0
+
+[dev]
+pytest>=8.0
+pytest-asyncio>=0.25

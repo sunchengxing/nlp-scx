@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: crawlee-data
+Version: 1.0.0
+Summary: NLP data collection crawler based on Crawlee Python
+Requires-Python: >=3.11
+Requires-Dist: crawlee>=1.0
+Requires-Dist: playwright>=1.50
+Requires-Dist: httpx>=0.28
+Requires-Dist: parsel>=1.9
+Requires-Dist: selectolax>=0.3
+Requires-Dist: peewee>=3.17
+Requires-Dist: pymysql>=1.1
+Requires-Dist: DBUtils>=3.1
+Requires-Dist: pydantic-settings>=2.0
+Requires-Dist: loguru>=0.7
+Requires-Dist: apscheduler>=3.10
+Requires-Dist: tenacity>=8.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.25; extra == "dev"
