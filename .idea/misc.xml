@@ -3,4 +3,7 @@
   <component name="Black">
     <option name="sdkName" value="cpu" />
   </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="uv (crawl)" project-jdk-type="Python SDK">
+    <output url="file://$PROJECT_DIR$/out" />
+  </component>
 </project>

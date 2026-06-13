@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crawlee-data"
-version = "1.0.0"
+version = "1.0.1"
 description = "NLP data collection crawler based on Crawlee Python"
 requires-python = ">=3.11"
 
@@ -21,6 +21,8 @@ dependencies = [
     "loguru>=0.7",
     "apscheduler>=3.10",
     "tenacity>=8.0",
+    "pandas>=3.0.3",
+    "beautifulsoup4>=4.15.0",
 ]
 
 [project.optional-dependencies]
@@ -30,7 +32,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["crawlee_data*"]
+include = ["core*", "business*", "scripts*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
