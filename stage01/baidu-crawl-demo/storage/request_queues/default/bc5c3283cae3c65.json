@@ -1,0 +1,16 @@
+{
+  "unique_key": "https://www.baidu.com",
+  "url": "https://www.baidu.com/",
+  "method": "GET",
+  "payload": null,
+  "headers": {},
+  "user_data": {
+    "__crawlee": {
+      "state": 4
+    }
+  },
+  "retry_count": 0,
+  "no_retry": false,
+  "loaded_url": null,
+  "handled_at": "2026-06-09 09:34:19.784590+00:00"
+}

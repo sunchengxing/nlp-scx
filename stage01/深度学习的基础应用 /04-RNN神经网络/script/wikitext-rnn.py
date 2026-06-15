@@ -1,3 +1,4 @@
+from collections import Counter
 from datasets import load_dataset
 import re
 import torch
@@ -23,19 +24,29 @@ raw_text = "\n".join(dataset["train"]["text"])
 # print(re.findall(r'\w+|[^\w\s]', input_str))
 # 基于数据集做分词处理
 tokens = re.findall(r'\w+|[^\w\s]', raw_text)
+# print(data.shape)
+token_freq = Counter(tokens)    # 返回 {词: 出现次数}
+# print(token_freq)
 # 分词没有"绝对正确"，只有"对任务是否合理"：
-
-
+UNK_TOKEN = "<unk>"
+filtered_tokens = []
+for t in tokens:
+    if token_freq[t] < 5:
+        filtered_tokens.append(UNK_TOKEN)
+    else:
+        filtered_tokens.append(t)
+print(filtered_tokens[:25])
 #拿到分词结果之后构建词表 先去重复
+tokens = filtered_tokens
 vocab = set(tokens)
 # 排序
 vocab = sorted(vocab)
-print(f'词表大小为{len(vocab)}')
+# print(f'词表大小为{len(vocab)}')
 
 # word2vector
 word2id = {w : i for i, w in enumerate(vocab)}
 id2word = {i : w for i, w in enumerate(vocab)}
-print(f'转为字典之后的大小为{len(word2id)}')
+# print(f'转为字典之后的大小为{len(word2id)}')
 # 前25个token
 # print(vocab[:25])
 
@@ -51,7 +62,6 @@ data = torch.tensor(ids)
 # 每一个token
 n_tokens = (len(data) // bs) * bs
 data = data[:n_tokens].reshape(bs, -1)
-print(data.shape)
 # 直接使用torch的embedding做id转俄embedding
 embeddings = torch.nn.Embedding(len(vocab), 128)
 x_linear = torch.nn.Linear(128, 256, dtype=torch.float32, device=torch.device('cpu'))
@@ -63,7 +73,7 @@ y = data[:, 1:]
 # 损失
 criterion = torch.nn.CrossEntropyLoss()
 # 训练多少轮次
-epochs = 2
+epochs = 100
 # 创建优化器
 Parameters = [
     {'params': embeddings.parameters()},
@@ -71,7 +81,7 @@ Parameters = [
     {'params': h_linear.parameters()},
     {'params': output_linear.parameters()}
 ]
-optimizer = torch.optim.SGD(Parameters, lr=0.01)
+optimizer = torch.optim.Adam(Parameters, lr=0.001)
 num_windows = x.shape[1] // 20
 for epoch in range(epochs):
     h_t = torch.zeros(bs, 256, dtype=torch.float32, device=torch.device('cpu'))
@@ -88,6 +98,8 @@ for epoch in range(epochs):
             # 计算损失
             loss_all += criterion(y_pred, y[:, j])
         loss_all.backward()
+        # 防止梯度爆炸
+        torch.nn.utils.clip_grad_norm_(embeddings.parameters(), 0.25)
         optimizer.step()
         epoch_loss += loss_all.item()
         # 每200个窗口打印一次进度
