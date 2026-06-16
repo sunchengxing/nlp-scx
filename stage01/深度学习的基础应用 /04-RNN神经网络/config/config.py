@@ -10,6 +10,7 @@ class WikiTextConfig:
     embedding_dim : int = 128
     hidden_dim : int = 256
     learning_rate : float = 0.01
+    learning_rate_adam : float = 0.001
     device : str = "cpu"
     model_save_path : str = "wikitext-rnn.pt"
     cache_dataset_dir : str = "/Users/scx/.cache/huggingface/datasets"

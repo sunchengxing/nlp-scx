@@ -5,7 +5,19 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="c9f3c1eb-6a1c-42b0-82b0-f42e52d3ebeb" name="Changes" comment="feat(rnn): 添加RNN神经网络实现和相关配置&#10;&#10;- 添加WikiText数据集处理功能和分词逻辑&#10;- 实现RNN模型架构和训练流程&#10;- 配置文件系统支持yaml和dataclass配置方式&#10;- 创建数据集类和模型类的模块化结构&#10;- 添加训练脚本和模型保存功能&#10;- 更新项目配置文件pyproject.toml&#10;- 移除旧的shell脚本文件clod.sh">
+      <change afterPath="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/inference/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/inference/inference.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/outputs/rnn_wiki-text_model_gpu.pt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stage01/baidu-crawl-demo/storage/key_value_stores/default/__CRAWLER_STATISTICS_0" beforeDir="false" afterPath="$PROJECT_DIR$/stage01/baidu-crawl-demo/storage/key_value_stores/default/__CRAWLER_STATISTICS_0" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stage01/baidu-crawl-demo/storage/key_value_stores/default/__metadata__.json" beforeDir="false" afterPath="$PROJECT_DIR$/stage01/baidu-crawl-demo/storage/key_value_stores/default/__metadata__.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stage01/baidu-crawl-demo/storage/request_queues/default/__metadata__.json" beforeDir="false" afterPath="$PROJECT_DIR$/stage01/baidu-crawl-demo/storage/request_queues/default/__metadata__.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stage01/baidu-crawl-demo/storage/request_queues/default/bc5c3283cae3c65.json" beforeDir="false" afterPath="$PROJECT_DIR$/stage01/baidu-crawl-demo/storage/request_queues/default/bc5c3283cae3c65.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/config/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/config/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/model/model.py" beforeDir="false" afterPath="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/model/model.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/script/rnn_wiki-text_model.pt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/train/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/train/train.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -40,26 +52,29 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.baiduhot-craw.executor": "Run",
     "Python.bp-手写.executor": "Run",
     "Python.datasets.executor": "Run",
+    "Python.inference.executor": "Run",
     "Python.wikitext-rnn.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
     "git-widget-placeholder": "main",
-    "last_opened_file_path": "/Users/scx/data/codeData/python/nlp-scx/stage01/深度学习的基础应用 /04-RNN 神经网络 ",
+    "last_opened_file_path": "/Users/scx/data/codeData/python/nlp-scx/stage01/深度学习的基础应用 /04-RNN神经网络/outputs",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "preferences.lookFeel",
+    "settings.editor.selected.configurable": "org.intellij.featuresSuggester.FeatureSuggesterConfigurable",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/outputs" />
       <recent name="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN 神经网络 " />
       <recent name="$PROJECT_DIR$/stage01/深度学习的基础应用 /01-BP 全连接神经网络" />
     </key>
@@ -67,7 +82,32 @@
       <recent name="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN 神经网络 /script" />
     </key>
   </component>
-  <component name="RunManager">
+  <component name="RunManager" selected="Python.inference">
+    <configuration name="baiduhot-craw" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="nlp-scx" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/stage01/baidu-crawl-demo" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="DEBUG_JUST_MY_CODE" value="false" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/stage01/baidu-crawl-demo/baiduhot-craw.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="bp-手写" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="nlp-scx" />
       <option name="ENV_FILES" value="" />
@@ -118,8 +158,35 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="inference" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="nlp-scx" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/inference" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="DEBUG_JUST_MY_CODE" value="false" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/inference/inference.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.inference" />
+        <item itemvalue="Python.baiduhot-craw" />
         <item itemvalue="Python.datasets" />
         <item itemvalue="Python.bp-手写" />
       </list>
@@ -141,7 +208,7 @@
       <updated>1781277412582</updated>
       <workItem from="1781277413723" duration="2579000" />
       <workItem from="1781280012772" duration="17215000" />
-      <workItem from="1781435974794" duration="27871000" />
+      <workItem from="1781435974794" duration="39314000" />
     </task>
     <task id="LOCAL-00001" summary="feat(crawl): 初始化股票数据爬取项目并配置AKShare接口&#10;&#10;- 移除敏感的.env文件并创建.env.example模板配置&#10;- 添加.gitignore文件忽略环境变量和临时文件&#10;- 创建12306火车票爬虫demo用于基础爬取测试&#10;- 实现A股服务类提供股票列表、K线、龙虎榜、资金流向数据同步功能&#10;- 设计完整的AKShare交易数据模型包括K线、龙虎榜、资金流向等13个核心表&#10;- 配置AKShare东方财富接口和远程服务器鉴权参数&#10;- 添加定时任务实现随机股票数据采集功能&#10;- 创建详细的AKShare交易数据Model设计文档&#10;- 更新AI代理配置脚本和代理设置">
       <option name="closed" value="true" />
@@ -167,7 +234,15 @@
       <option name="project" value="LOCAL" />
       <updated>1781525247349</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="feat(rnn): 添加RNN神经网络实现和相关配置&#10;&#10;- 添加WikiText数据集处理功能和分词逻辑&#10;- 实现RNN模型架构和训练流程&#10;- 配置文件系统支持yaml和dataclass配置方式&#10;- 创建数据集类和模型类的模块化结构&#10;- 添加训练脚本和模型保存功能&#10;- 更新项目配置文件pyproject.toml&#10;- 移除旧的shell脚本文件clod.sh">
+      <option name="closed" value="true" />
+      <created>1781572318751</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1781572318751</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -191,7 +266,9 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/nlp_scx$bp_.coverage" NAME="bp-手写 Coverage Results" MODIFIED="1781318520156" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/stage01/深度学习的基础应用 /01-BP 全连接神经网络" />
+    <SUITE FILE_PATH="coverage/nlp_scx$inference.coverage" NAME="inference Coverage Results" MODIFIED="1781582557502" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/inference" />
     <SUITE FILE_PATH="coverage/nlp_scx$wikitext_rnn.coverage" NAME="wikitext-rnn Coverage Results" MODIFIED="1781517511026" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/script" />
+    <SUITE FILE_PATH="coverage/nlp_scx$baiduhot_craw.coverage" NAME="baiduhot-craw Coverage Results" MODIFIED="1781573472154" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/stage01/baidu-crawl-demo" />
     <SUITE FILE_PATH="coverage/nlp_scx$datasets.coverage" NAME="datasets Coverage Results" MODIFIED="1781514563118" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/stage01/深度学习的基础应用 /04-RNN神经网络/dataset" />
   </component>
 </project>

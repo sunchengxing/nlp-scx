@@ -62,3 +62,47 @@ class RNNModel(torch.nn.Module):
     #                 print(
     #                     f'epoch {epoch + 1}/{epochs} | 窗口 {window_id}/{num_windows} | 当前窗口loss {loss_all.item():.2f}')
     #         print(f'=== epoch {epoch + 1} 完成 | 平均loss {epoch_loss / num_windows:.2f} ===')
+
+
+class LSTMModel(torch.nn.Module):
+    """
+    LSTM训练
+    LSTM有四个线性组合
+    输入门
+    遗忘门
+    候选记忆
+    输出门
+    """
+    def __init__(self, vocab_size, embedding_dim, hidden_dim):
+        super().__init__()
+        self.embedding = torch.nn.Embedding(vocab_size, embedding_dim)
+
+        self.input_gate_x_linear = torch.nn.Linear(embedding_dim, hidden_dim)
+        self.input_gate_h_linear = torch.nn.Linear(hidden_dim, hidden_dim)
+
+        self.forget_gate_x_linear = torch.nn.Linear(embedding_dim, hidden_dim)
+        self.forget_gate_h_linear = torch.nn.Linear(hidden_dim, hidden_dim)
+
+        self.candidate_gate_x_linear = torch.nn.Linear(embedding_dim, hidden_dim)
+        self.candidate_gate_h_linear = torch.nn.Linear(hidden_dim, hidden_dim)
+
+        self.output_gate_x_linear = torch.nn.Linear(embedding_dim, hidden_dim)
+        self.output_gate_h_linear = torch.nn.Linear(hidden_dim, hidden_dim)
+        # 输出门 从隐层到词表的线性映射
+        self.output_linear = torch.nn.Linear(hidden_dim, vocab_size)
+
+
+    def forward(self, x, h_t, c_t):
+        outputs = []
+        for t in range(x.shape[1]):
+            x_input = self.embedding(x[:, t])
+            input_gate = torch.sigmoid(self.input_gate_x_linear(x_input) + self.input_gate_h_linear(h_t))
+            forget_gate = torch.sigmoid(self.forget_gate_x_linear(x_input) + self.forget_gate_h_linear(h_t))
+            candidate_gate = torch.tanh(self.candidate_gate_x_linear(x_input) + self.candidate_gate_h_linear(h_t))
+            output_gate = torch.sigmoid(self.output_gate_x_linear(x_input) + self.output_gate_h_linear(h_t))
+            c_t = forget_gate * c_t + input_gate * candidate_gate
+            h_t = output_gate * torch.tanh(c_t)
+            y_pred = self.output_linear(h_t)
+            outputs.append(y_pred)
+        return outputs, h_t, c_t
+

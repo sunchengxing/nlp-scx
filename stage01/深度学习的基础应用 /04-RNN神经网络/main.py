@@ -5,8 +5,8 @@ import torch
 from collections import Counter
 from config import WikiTextConfig
 from dataset.datasets import WikiTextDataset
-from model.model import RNNModel
-from train.train import train
+from model.model import RNNModel, LSTMModel
+from train.train import train_with_rnn, train_with_lstm
 
 
 def prepare_data(config: WikiTextConfig):
@@ -70,7 +70,12 @@ def main():
     vocab_size = len(word2id)
 
     # 3. 创建模型
-    model = RNNModel(
+    # model = RNNModel(
+    #     vocab_size=vocab_size,
+    #     embedding_dim=config.embedding_dim,
+    #     hidden_dim=config.hidden_dim
+    # )
+    model = LSTMModel(
         vocab_size=vocab_size,
         embedding_dim=config.embedding_dim,
         hidden_dim=config.hidden_dim
@@ -78,8 +83,8 @@ def main():
     print(f'模型参数量: {sum(p.numel() for p in model.parameters()):,}')
 
     # 4. 训练
-    train(model, x, y, config)
-
+    # train_with_rnn(model, x, y, config)
+    train_with_lstm(model, x, y, config)
     # 5. 保存词表（推理时需要）
     torch.save({
         'word2id': word2id,
