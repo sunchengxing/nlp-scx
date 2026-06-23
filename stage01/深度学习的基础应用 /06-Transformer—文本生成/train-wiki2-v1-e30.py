@@ -7,9 +7,9 @@ from collections import Counter      # 统计词频，用于构建词表
 from datasets import load_dataset    # HuggingFace datasets，加载 wikitext
 from torch.utils.data import Dataset, DataLoader  # 数据集抽象与批加载器
 
-# ══════════════════════════════════════════════
+
 # 1. Config
-# ══════════════════════════════════════════════
+
 class Config:
     DATASET_NAME        = "Salesforce/wikitext"   # HuggingFace 数据集名称
     DATASET_VERSION     = "wikitext-2-raw-v1"      # wikitext-2 原始格式版本
@@ -28,9 +28,8 @@ class Config:
 cfg = Config()                                     # 实例化全局配置
 print(f"Device: {cfg.DEVICE}")                     # 打印当前运行设备
 
-# ══════════════════════════════════════════════
+
 # 2. Data
-# ══════════════════════════════════════════════
 PAD, UNK = "<pad>", "<unk>"                        # 填充 token 和未登录词 token
 SPECIALS  = [PAD, UNK, "<bos>", "<eos>"]           # 4 个特殊 token，固定占编号 0~3
 
@@ -70,9 +69,9 @@ def get_dataloaders(cfg):
                     batch_size=cfg.BATCH_SIZE, shuffle=False, drop_last=True)  # 验证集不打乱
     return vocab, tr, va
 
-# ══════════════════════════════════════════════
+
 # 3. Model
-# ══════════════════════════════════════════════
+
 class PositionalEncoding(nn.Module):
     def __init__(self, d, max_len=512, dropout=0.1):
         super().__init__()
@@ -116,9 +115,9 @@ class TransformerLM(nn.Module):
         for b in self.blocks: x = b(x, mask)           # 依次通过 N 个 Block
         return self.head(self.ln(x))                   # LM Head 输出 (B, T, vocab_size)
 
-# ══════════════════════════════════════════════
+
 # 4. Train / Eval
-# ══════════════════════════════════════════════
+
 def train_epoch(model, loader, criterion, optimizer, device):
     model.train()                                      # 开启训练模式（dropout 生效）
     total = 0.0
@@ -145,9 +144,9 @@ def eval_epoch(model, loader, criterion, device):
         total += criterion(logits.view(B*T, V), y.view(B*T)).item()
     return total / len(loader)                         # 返回平均验证 loss
 
-# ══════════════════════════════════════════════
+
 # 5. Main
-# ══════════════════════════════════════════════
+
 if __name__ == "__main__":
     print("Loading data...")
     vocab, train_loader, valid_loader = get_dataloaders(cfg)   # 加载数据 + 构建词表

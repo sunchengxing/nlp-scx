@@ -7,9 +7,9 @@ import torch.nn.functional as F
 from collections import Counter
 from datasets import load_dataset
 
-# ══════════════════════════════════════════════
+
 # 1. Config（必须与 train-wiki-origin.py 完全一致）
-# ══════════════════════════════════════════════
+
 class Config:
     DATASET_NAME        = "Salesforce/wikitext"   # HuggingFace 数据集名
     DATASET_VERSION     = "wikitext-2-raw-v1"      # 数据集版本
@@ -23,9 +23,9 @@ class Config:
 
 cfg = Config()
 
-# ══════════════════════════════════════════════
+
 # 2. 重建词表（必须与训练时完全一致）
-# ══════════════════════════════════════════════
+
 PAD, UNK = "<pad>", "<unk>"
 SPECIALS  = [PAD, UNK, "<bos>", "<eos>"]
 
@@ -43,9 +43,9 @@ def load_vocab():
     train_txt = [t for t in raw["train"]["text"] if t.strip()]
     return build_vocab(train_txt, cfg.MAX_VOCABULARY_SIZE)
 
-# ══════════════════════════════════════════════
+
 # 3. 模型定义（与 train-wiki-origin.py 完全一致）
-# ══════════════════════════════════════════════
+
 class PositionalEncoding(nn.Module):
     def __init__(self, d, max_len=512, dropout=0.1):
         super().__init__()
@@ -88,9 +88,9 @@ class TransformerLM(nn.Module):
         for b in self.blocks: x = b(x, mask)
         return self.head(self.ln(x))
 
-# ══════════════════════════════════════════════
+
 # 4. 生成函数
-# ══════════════════════════════════════════════
+
 @torch.no_grad()
 def generate(model, vocab, prompt, max_len=100, top_k=5, temperature=1.0):
     idx2word = {v: k for k, v in vocab.items()}           # id -> word 反查表
@@ -120,9 +120,9 @@ def generate(model, vocab, prompt, max_len=100, top_k=5, temperature=1.0):
     out_ids = ctx[0, len(ids):].tolist()                  # 去掉 prompt 部分
     return " ".join(idx2word.get(i, "<unk>") for i in out_ids)  # 转回文字
 
-# ══════════════════════════════════════════════
+
 # 5. 主程序
-# ══════════════════════════════════════════════
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Transformer LM 文本生成")
     # parser.add_argument("--model",       default="./file/transformer_lm_best-20000.pt", help=".pt 模型文件路径")
