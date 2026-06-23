@@ -14,7 +14,8 @@ export ANTHROPIC_BASE_URL=https://sinsy.eu.cc/
 
 case $choice in
   1)
-    export ANTHROPIC_MODEL=accounts/fireworks/models/glm-5p1
+#    export ANTHROPIC_MODEL=accounts/fireworks/models/glm-5p2
+    export ANTHROPIC_MODEL=claude-opus-4-7-max
     echo "启动 Claude..."
     claude --dangerously-skip-permissions
     ;;

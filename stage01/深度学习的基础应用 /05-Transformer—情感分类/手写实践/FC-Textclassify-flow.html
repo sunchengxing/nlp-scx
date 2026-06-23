@@ -1,0 +1,116 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>FC-Textclassify 流程图 & 网络结构</title><style>:root{--bg:#0b1120;--card:#111827;--border:#1e293b;--text:#e2e8f0;--accent:#38bdf8;--green:#4ade80;--yellow:#facc15;--orange:#fb923c;--red:#f87171;--purple:#c084fc}*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;padding:20px}h1{text-align:center;color:var(--accent);margin-bottom:16px;font-size:1.4rem}.container{max-width:1100px;margin:0 auto;display:flex;flex-wrap:wrap;gap:16px}.panel{flex:1 1 500px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px}h2{font-size:1rem;color:var(--yellow);margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:4px}svg{display:block;width:100%}text{fill:var(--text);font-size:12px}.tbox{filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}.legend{display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;font-size:.72rem;color:var(--text2)}.legend span{display:flex;align-items:center;gap:4px}.legend .swatch{width:12px;height:12px;border-radius:3px}</style></head><body>
+<h1>FC 全连接文本分类 — 训练流程图 & 网络结构图</h1>
+<div class="container"><!-- ====== LEFT: Flowchart ====== -->
+<div class="panel"><h2>训练流程</h2>
+<svg viewBox="0 0 480 620">
+<defs><marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#475569"/></marker>
+<marker id="arrR" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#f87171"/></marker>
+<marker id="arrB" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#38bdf8"/></marker>
+<filter id="glow"><feGaussianBlur stdDeviation="2"/></filter></defs>
+<!-- Box helper: x,y,w,h,fill,text1,text2 -->
+<g class="tbox"><rect x="160" y="10" width="160" height="36" rx="8" fill="#1e40af"/><text x="240" y="32" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="bold">IMDB 数据集</text></g>
+<line x1="240" y1="46" x2="240" y2="62" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+
+<g class="tbox"><rect x="120" y="62" width="240" height="36" rx="8" fill="#5b21b6"/><text x="240" y="84" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="bold">Tokenize: 小写 → split(" ") → 转id</text></g>
+<line x1="240" y1="98" x2="240" y2="114" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+
+<g class="tbox"><rect x="120" y="114" width="240" height="36" rx="8" fill="#5b21b6"/><text x="240" y="136" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="bold">构建词表: Counter → most_common 5000</text></g>
+<line x1="240" y1="150" x2="240" y2="166" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+
+<g class="tbox"><rect x="130" y="166" width="220" height="36" rx="8" fill="#166534"/><text x="240" y="188" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="bold">截断+补齐 → [bs, 256] Tensor</text></g>
+<line x1="240" y1="202" x2="240" y2="218" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+
+<g class="tbox"><rect x="130" y="218" width="220" height="36" rx="8" fill="#166534"/><text x="240" y="240" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="bold">DataLoader(B=64, shuffle)</text></g>
+<line x1="240" y1="254" x2="240" y2="270" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+
+<g class="tbox"><rect x="140" y="270" width="200" height="36" rx="8" fill="#92400e"/><text x="240" y="292" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="bold">Train/Val Split (8:2)</text></g>
+<line x1="150" y1="306" x2="100" y2="340" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<line x1="330" y1="306" x2="380" y2="340" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+
+<!-- Training Loop -->
+<rect x="10" y="344" width="220" height="140" rx="8" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="5,3"/>
+<text x="120" y="362" text-anchor="middle" fill="#38bdf8" font-size="11" font-weight="bold">Training Loop</text>
+<g class="tbox"><rect x="30" y="372" width="180" height="28" rx="6" fill="#1e3a5f"/><text x="120" y="390" text-anchor="middle" fill="#e2e8f0" font-size="10">zero_grad → forward → loss</text></g>
+<g class="tbox"><rect x="30" y="408" width="180" height="28" rx="6" fill="#1e3a5f"/><text x="120" y="426" text-anchor="middle" fill="#e2e8f0" font-size="10">backward → optimizer.step()</text></g>
+<g class="tbox"><rect x="50" y="444" width="140" height="28" rx="6" fill="#1e3a5f"/><text x="120" y="462" text-anchor="middle" fill="#e2e8f0" font-size="10">Adam(lr=0.001)</text></g>
+
+<!-- Validation -->
+<rect x="290" y="344" width="180" height="90" rx="8" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-dasharray="5,3"/>
+<text x="380" y="362" text-anchor="middle" fill="var(--green)" font-size="11" font-weight="bold">Validation</text>
+<g class="tbox"><rect x="310" y="372" width="140" height="28" rx="6" fill="rgba(74,222,128,.1)"/><text x="380" y="390" text-anchor="middle" fill="var(--green)" font-size="10">model.eval()</text></g>
+<g class="tbox"><rect x="310" y="406" width="140" height="22" rx="6" fill="rgba(74,222,128,.1)"/><text x="380" y="421" text-anchor="middle" fill="var(--green)" font-size="10">Accuracy</text></g>
+
+<!-- Loop arrow -->
+<path d="M220,390 C260,390 260,344 240,344" stroke="#38bdf8" stroke-width="1.2" fill="none" stroke-dasharray="4,2"/>
+<text x="270" y="370" fill="#38bdf8" font-size="9">×10 epochs</text>
+
+<!-- Final -->
+<line x1="240" y1="484" x2="240" y2="510" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<g class="tbox"><rect x="140" y="512" width="200" height="36" rx="8" fill="#991b1b"/><text x="240" y="534" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="bold">输出: 最佳 Val Acc 模型</text></g>
+
+<!-- Loss + Acc labels -->
+<rect x="20" y="560" width="440" height="48" rx="6" fill="rgba(56,189,248,.06)" stroke="#1e293b"/>
+<text x="240" y="578" text-anchor="middle" fill="var(--text2)" font-size="10">Loss: CrossEntropyLoss  |  Optimizer: Adam  |  指标: Accuracy</text>
+<text x="240" y="596" text-anchor="middle" fill="var(--text2)" font-size="10">正向 → 二分类 | 负向 → 二分类 | Eval Acc = argmax匹配数 / 总样本</text>
+
+<foreignObject x="0" y="0" width="1" height="1"><div class="legend"><span><div class="swatch" style="background:#1e40af"></div> 数据源</span><span><div class="swatch" style="background:#5b21b6"></div> 预处理</span><span><div class="swatch" style="background:#166534"></div> Tensor构建</span><span><div class="swatch" style="background:#92400e"></div> 数据划分</span><span><div class="swatch" style="background:#1e3a5f"></div> 训练</span><span><div class="swatch" style="background:rgba(74,222,128,.3)"></div> 验证</span></div></foreignObject>
+</svg></div><!-- ====== RIGHT: Network Architecture ====== -->
+<div class="panel"><h2>网络结构 (FcClassifyModel)</h2>
+<svg viewBox="0 0 500 620">
+<!-- Input -->
+<g class="tbox"><rect x="120" y="10" width="260" height="30" rx="6" fill="#1e40af"/><text x="250" y="30" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="bold">Input Token IDs &nbsp; [bs=64, seq_len=256]</text></g>
+<text x="255" y="52" text-anchor="middle" fill="var(--text2)" font-size="9">每个 id 范围 [0, 4999] ← 5000词表</text>
+
+<!-- Arrow 1 -->
+<line x1="250" y1="56" x2="250" y2="72" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="360" y="68" fill="var(--accent)" font-size="9">Embedding(5000, 128)</text>
+
+<!-- Embedding -->
+<g class="tbox"><rect x="100" y="74" width="300" height="36" rx="8" fill="#5b21b6"/><text x="250" y="90" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="bold">Embedding Layer 查表</text><text x="250" y="104" text-anchor="middle" fill="var(--text2)" font-size="10">每个 id → 128维稠密向量 (可训练)</text></g>
+<text x="255" y="122" text-anchor="middle" fill="var(--text2)" font-size="9">[bs, 256, 128]  ← 256个词×128维</text>
+
+<!-- Arrow -->
+<line x1="250" y1="128" x2="250" y2="144" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="360" y="140" fill="var(--orange)" font-size="9">.mean(dim=1)</text>
+
+<!-- Mean Pooling -->
+<g class="tbox"><rect x="100" y="146" width="300" height="36" rx="8" fill="#166534"/><text x="250" y="162" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="bold">Mean Pooling 平均池化</text><text x="250" y="176" text-anchor="middle" fill="var(--text2)" font-size="10">256 个词向量 → 求平均 → 1个 128维向量</text></g>
+<text x="255" y="194" text-anchor="middle" fill="var(--text2)" font-size="9">[bs, 128] ← 整句压缩为一个向量</text>
+
+<!-- Arrow -->
+<line x1="250" y1="200" x2="250" y2="216" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="360" y="212" fill="var(--red)" font-size="9">Linear(128,2)</text>
+
+<!-- Classify Layer -->
+<g class="tbox"><rect x="100" y="218" width="300" height="36" rx="8" fill="#991b1b"/><text x="250" y="234" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="bold">Classify Layer &nbsp; 128→2</text><text x="250" y="248" text-anchor="middle" fill="var(--text2)" font-size="10">+ Dropout(0.5) &nbsp; W: [128,2] b: [2]</text></g>
+<text x="255" y="266" text-anchor="middle" fill="var(--text2)" font-size="9">[bs, 2]  ← 2类 logits</text>
+
+<!-- Arrow -->
+<line x1="250" y1="270" x2="250" y2="286" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+
+<!-- Softmax -->
+<g class="tbox"><rect x="130" y="288" width="240" height="30" rx="8" fill="#fb923c" opacity=".8"/><text x="250" y="308" text-anchor="middle" fill="#0f172a" font-size="12" font-weight="bold">CrossEntropyLoss</text></g>
+
+<!-- Output -->
+<line x1="250" y1="318" x2="250" y2="334" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<g class="tbox"><rect x="120" y="336" width="260" height="36" rx="8" fill="var(--green)" opacity=".9"/><text x="250" y="358" text-anchor="middle" fill="#0f172a" font-size="12" font-weight="bold">Output: Positive / Negative</text></g>
+
+<!-- ====== MODEL PARAMS ====== -->
+<rect x="20" y="395" width="460" height="105" rx="8" fill="rgba(56,189,248,.05)" stroke="#1e293b"/>
+<text x="250" y="414" text-anchor="middle" fill="var(--accent)" font-size="11" font-weight="bold">模型参数统计</text>
+<text x="50" y="436" fill="var(--text2)" font-size="10">Embedding: &nbsp;&nbsp;5000 × 128 = 640,000 &nbsp; params</text>
+<text x="50" y="456" fill="var(--text2)" font-size="10">Linear 层: &nbsp;&nbsp;(128 × 2) + 2 = 258 &nbsp; params</text>
+<text x="50" y="476" fill="var(--text2)" font-size="10">Total: &nbsp;&nbsp;≈ 640K &nbsp; 参数量极轻</text>
+<text x="50" y="494" fill="var(--text2)" font-size="9">Dropout 仅在训练时生效，推理时自动关闭</text>
+
+<!-- ====== DATA FLOW SUMMARY ====== -->
+<rect x="20" y="515" width="460" height="95" rx="8" fill="rgba(192,132,252,.05)" stroke="#1e293b"/>
+<text x="250" y="534" text-anchor="middle" fill="var(--purple)" font-size="11" font-weight="bold">数据流总结</text>
+<text x="240" y="554" text-anchor="middle" fill="var(--text)" font-size="11">
+<tspan x="240" dy="0">文本</tspan><tspan fill="#38bdf8"> → lowercase→split(" ")→id lookup</tspan><tspan> → 截断补零</tspan>
+<tspan x="240" dy="18">[bs,256]</tspan><tspan fill="#c084fc"> → Embedding </tspan><tspan >→ [bs,256,128]</tspan>
+<tspan x="240" dy="18">[bs,256,128]</tspan><tspan fill="#4ade80"> → Mean Pooling </tspan><tspan>→ [bs,128]</tspan>
+<tspan x="240" dy="18">[bs,128]</tspan><tspan fill="#f87171"> → Linear+Dropout </tspan><tspan>→ [bs,2] → 二分类</tspan>
+</text></foreignObject>
+</svg></div></div>
+</body></html>

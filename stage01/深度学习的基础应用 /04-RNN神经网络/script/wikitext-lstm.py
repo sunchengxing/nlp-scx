@@ -1,26 +1,23 @@
-"""
-WikiText-2 LSTM 语言模型 - 单文件版（服务器/GPU训练用）
-"""
 from collections import Counter
 from datasets import load_dataset
 import re
 import torch
 import time
 
-# ============ 设备自动检测 ============
+# 使用colab的TU4 GPU
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'使用设备: {device}')
 if device.type == 'cuda':
     print(f'GPU型号: {torch.cuda.get_device_name(0)}')
-
-# ============ 数据加载 ============
+# 第一步 先做数据加载，将HuggingFace数据集下载之后导入
+# 数据集路径 数据集名称
 dataset = load_dataset("Salesforce/wikitext", "wikitext-2-raw-v1")
+# 将训练文本载入 数据集对象内部的list数据转为了一段超长大文本
 raw_text = "\n".join(dataset["train"]["text"])
-
-# ============ 分词 ============
+print(f'数据长度: {len(raw_text)}')
+# 先做好分词 做分词之前先做正则格式化
 tokens = re.findall(r'\w+|[^\w\s]', raw_text)
-
-# ============ 低频词过滤 ============
+# 词频统计 由于第一次训练的时候7万多词表大小会导致参数量级过大导致训练效率低下，所以后续所有训练都考虑做低频词过滤
 token_freq = Counter(tokens)
 UNK_TOKEN = "<unk>"
 filtered_tokens = []
@@ -30,23 +27,29 @@ for t in tokens:
     else:
         filtered_tokens.append(t)
 
-# ============ 构建词表 ============
+# 构建词表
 vocab = sorted(set(filtered_tokens))
 word2id = {w: i for i, w in enumerate(vocab)}
 id2word = {i: w for i, w in enumerate(vocab)}
 print(f'词表大小: {len(vocab)}')
 
-# ============ 转 ids + reshape ============
+# 转 ids + reshape 遍历filtered_tokens数组数据将拿到的每一个元素（就是做完词频控制之后的词）再通过map转换成id
 ids = [word2id[w] for w in filtered_tokens]
+# bs个样本
 bs = 75
+# 全量词表id 转为tensor对象
 data = torch.tensor(ids)
+# 计算全量ids按照75个样本来算，每一个样本最多有多少个token 拿到取整数倍的token
 n_tokens = (len(data) // bs) * bs
+# 将这个整数倍的全量token-ids的shape做reshape变换 得到一个bs个样本，每一个样本n个token-ids
+# shape: (75, seq_len)
 data = data[:n_tokens].reshape(bs, -1)
+# 使用cpu训练 输入/标签错位构造
 x = data[:, :-1].to(device)
 y = data[:, 1:].to(device)
 print(f'数据形状: x={x.shape}, y={y.shape}')
-
-# ============ LSTM 模型定义 ============
+#
+# LSTM 模型定义
 embedding = torch.nn.Embedding(len(vocab), 128).to(device)
 # 输入门
 input_gate_x = torch.nn.Linear(128, 256).to(device)
@@ -71,14 +74,14 @@ all_params = list(embedding.parameters()) + list(input_gate_x.parameters()) + li
              list(output_linear.parameters())
 print(f'模型参数量: {sum(p.numel() for p in all_params):,}')
 
-# ============ 训练配置 ============
+# 训练配置
 criterion = torch.nn.CrossEntropyLoss()
 epochs = 100
 optimizer = torch.optim.Adam(all_params, lr=0.001)
 seq_len = 20
 num_windows = (x.shape[1] - seq_len) // seq_len
 
-# ============ 训练 ============
+# 训练
 total_start = time.time()
 for epoch in range(epochs):
     epoch_start = time.time()

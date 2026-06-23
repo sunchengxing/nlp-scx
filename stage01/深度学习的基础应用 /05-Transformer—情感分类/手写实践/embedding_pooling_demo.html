@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Embedding → Mean Pooling → Linear 维度变化动画</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0d1117; color:#e6edf3; font-family:'Consolas','Monaco',monospace; min-height:100vh; display:flex; flex-direction:column; align-items:center; }
+h1 { margin:24px 0 4px; font-size:18px; color:#58a6ff; letter-spacing:2px; }
+.subtitle { font-size:12px; color:#8b949e; margin-bottom:16px; }
+#canvas { border:1px solid #21262d; border-radius:8px; background:#0d1117; display:block; }
+.controls { margin:18px 0 10px; display:flex; gap:14px; align-items:center; }
+button { background:#161b22; border:1px solid #30363d; color:#e6edf3; padding:8px 22px; border-radius:6px; font-size:13px; cursor:pointer; transition:all .2s; }
+button:hover { background:#21262d; border-color:#58a6ff; color:#58a6ff; }
+button.active { background:#1f4e79; border-color:#58a6ff; color:#58a6ff; }
+.step-info { margin:8px 0 20px; font-size:13px; color:#8b949e; text-align:center; min-height:40px; max-width:700px; line-height:1.6; }
+.step-dots { display:flex; gap:8px; margin-bottom:12px; }
+.dot { width:10px; height:10px; border-radius:50%; background:#21262d; border:1px solid #30363d; transition:all .3s; }
+.dot.active { background:#58a6ff; border-color:#58a6ff; }
+</style>
+</head>
+<body>
+<h1>Embedding → Mean Pooling → Linear</h1>
+<div class="subtitle">深度学习文本分类 · 维度变化可视化</div>
+<div class="step-dots" id="stepDots"></div>
+<canvas id="canvas" width="780" height="460"></canvas>
+<div class="controls">
+  <button id="btnPrev">&#9664; 上一步</button>
+  <button id="btnAuto">⏵ 自动播放</button>
+  <button id="btnNext">下一步 &#9654;</button>
+</div>
+<div class="step-info" id="stepInfo"></div>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+const BS=4, T=6, E=4, OUT=2;
+const tokenIds = [[3,7,12,5,9,2],[1,8,4,11,6,3],[5,2,9,7,1,10],[8,4,6,3,11,7]];
+const bsColors = ['#58a6ff','#3fb950','#f78166','#d2a8ff'];
+const embedShades = ['#1a3a5c','#1f6b35','#7a2a22','#4a2a6e'];
+
+let step=0, animT=0, autoPlay=false, autoTimer=null, rafId=null;
+
+const stepInfos=[
+  'Step 0 · 输入 x  shape [bs=4, t=6]\n每行是一条样本，每格是一个 token id（整数索引）',
+  'Step 1 · Embedding 查表  [bs=4, t=6] → [bs=4, t=6, e=4]\n每个 token id 被替换为 e=4 维的向量（每个小格拆成4个颜色格）',
+  'Step 2 · 完整 Embedding 张量  shape [bs=4, t=6, e=4]\n伪3D 等轴测视图，3个轴分别对应 batch / time / embed',
+  'Step 3 · mean(dim=1)  [bs=4, t=6, e=4] → [bs=4, e=4]\nt=6 那个维度的6个向量逐渐合并压缩成1个均值向量，观察方块"变薄"',
+  'Step 4 · Linear  [bs=4, e=4] → [bs=4, out=2]\n最终线性层输出2维分类 logits（neg / pos）'
+];
+
+function hexToRgb(h){
+  const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);
+  return [r,g,b];
+}
+function alphaColor(hex,a){
+  const [r,g,b]=hexToRgb(hex); return `rgba(${r},${g},${b},${a})`;
+}
+function easeInOut(t){ return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2; }
+function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+
+// ============ STEP 0: token id matrix ============
+function drawStep0(alpha){
+  const cellW=52, cellH=36, marginX=140, marginY=100;
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  // title
+  ctx.fillStyle='#58a6ff'; ctx.font='bold 14px Consolas';
+  ctx.fillText('x  [bs=4, t=6]', marginX, marginY-32);
+  ctx.fillStyle='#8b949e'; ctx.font='12px Consolas';
+  ctx.fillText('token id matrix', marginX, marginY-14);
+  // axis labels
+  ctx.fillStyle='#8b949e'; ctx.font='11px Consolas';
+  ctx.fillText('batch (bs=4)', 30, marginY+BS*cellH/2+4);
+  for(let t=0;t<T;t++){
+    ctx.fillText('t'+t, marginX+t*cellW+cellW/2-6, marginY-4);
+  }
+  // grid
+  for(let b=0;b<BS;b++){
+    for(let t=0;t<T;t++){
+      const x=marginX+t*cellW, y=marginY+b*cellH;
+      ctx.fillStyle=alphaColor(bsColors[b], 0.15);
+      ctx.fillRect(x+1,y+1,cellW-2,cellH-2);
+      ctx.strokeStyle=bsColors[b];
+      ctx.lineWidth=1.2;
+      ctx.strokeRect(x+1,y+1,cellW-2,cellH-2);
+      ctx.fillStyle=bsColors[b];
+      ctx.font='bold 14px Consolas';
+      ctx.textAlign='center';
+      ctx.fillText(tokenIds[b][t], x+cellW/2, y+cellH/2+5);
+    }
+    // row label
+    ctx.textAlign='right';
+    ctx.fillStyle=bsColors[b]; ctx.font='11px Consolas';
+    ctx.fillText('b'+b, marginX-8, marginY+b*cellH+cellH/2+4);
+  }
+  // shape badge
+  ctx.textAlign='left';
+  ctx.fillStyle='#21262d'; ctx.fillRect(marginX+T*cellW+20, marginY+10, 120, 28);
+  ctx.strokeStyle='#30363d'; ctx.lineWidth=1; ctx.strokeRect(marginX+T*cellW+20, marginY+10, 120, 28);
+  ctx.fillStyle='#f78166'; ctx.font='bold 13px Consolas';
+  ctx.fillText('[4, 6]', marginX+T*cellW+32, marginY+29);
+  ctx.restore();
+}
+
+// ============ STEP 1: embedding lookup animation ============
+function drawStep1(animT){
+  const cellW=52, cellH=36, marginX=60, marginY=80;
+  const eW=11, eH=28;
+  ctx.save();
+  ctx.fillStyle='#58a6ff'; ctx.font='bold 14px Consolas';
+  ctx.fillText('Embedding 查表  [4,6] → [4,6,4]', marginX, marginY-32);
+  ctx.fillStyle='#8b949e'; ctx.font='12px Consolas';
+  ctx.fillText('每个 token id → e=4 维向量', marginX, marginY-14);
+  const prog = easeInOut(clamp(animT,0,1));
+  for(let b=0;b<BS;b++){
+    for(let t=0;t<T;t++){
+      const x=marginX+t*(cellW+2), y=marginY+b*(cellH+4);
+      if(prog < 0.5){
+        // show token id fading out
+        const a = 1 - prog*2;
+        ctx.globalAlpha=a;
+        ctx.fillStyle=alphaColor(bsColors[b],0.18);
+        ctx.fillRect(x,y,cellW,cellH);
+        ctx.strokeStyle=bsColors[b]; ctx.lineWidth=1.2;
+        ctx.strokeRect(x,y,cellW,cellH);
+        ctx.fillStyle=bsColors[b]; ctx.font='bold 13px Consolas';
+        ctx.textAlign='center';
+        ctx.fillText(tokenIds[b][t], x+cellW/2, y+cellH/2+5);
+        ctx.globalAlpha=1;
+      } else {
+        // show 4 embed dims appearing
+        const a = (prog-0.5)*2;
+        const eColors=['#58a6ff','#3fb950','#f78166','#d2a8ff'];
+        for(let e=0;e<E;e++){
+          ctx.globalAlpha = clamp(a - e*0.18, 0, 1);
+          ctx.fillStyle=alphaColor(eColors[e],0.7);
+          ctx.fillRect(x+e*eW, y+2, eW-1, cellH-4);
+          ctx.strokeStyle=eColors[e]; ctx.lineWidth=0.5;
+          ctx.strokeRect(x+e*eW, y+2, eW-1, cellH-4);
+        }
+        ctx.globalAlpha=1;
+      }
+    }
+    ctx.textAlign='right'; ctx.fillStyle=bsColors[b]; ctx.font='11px Consolas';
+    ctx.fillText('b'+b, marginX-6, marginY+b*(cellH+4)+cellH/2+4);
+  }
+  ctx.textAlign='left';
+  ctx.fillStyle='#f78166'; ctx.font='bold 13px Consolas';
+  ctx.fillText('[4, 6, 4]', marginX+T*(cellW+2)+16, marginY+BS*(cellH+4)/2);
+  ctx.restore();
+}
+
+// ============ STEP 2: 3D isometric view [4,6,4] ============
+function drawStep2(alpha){
+  ctx.save(); ctx.globalAlpha=alpha;
+  const ox=320, oy=260;
+  const sx=22, sy=14, sz=18;
+  ctx.fillStyle='#58a6ff'; ctx.font='bold 14px Consolas';
+  ctx.fillText('Embedding 张量  [bs=4, t=6, e=4]', 40, 40);
+  ctx.fillStyle='#8b949e'; ctx.font='11px Consolas';
+  ctx.fillText('等轴测视图  bs→右下  t→右上  e→向上', 40, 58);
+  const eColors=['#58a6ff','#3fb950','#f78166','#d2a8ff'];
+  // draw back-to-front for correct occlusion: b=3..0, t=0..5, e=0..3
+  for(let b=BS-1;b>=0;b--){
+    for(let t=0;t<T;t++){
+      for(let e=0;e<E;e++){
+        // isometric projection: b→right-down, t→right-up, e→up
+        const px = ox + b*sx - t*sx + 0;
+        const py = oy + b*sy + t*sy - e*sz;
+        const col = eColors[e];
+        // top face
+        ctx.beginPath();
+        ctx.moveTo(px,         py-sz);
+        ctx.lineTo(px+sx,      py-sz+sy);
+        ctx.lineTo(px+sx-sx,   py-sz+sy+sy);
+        ctx.lineTo(px-sx,      py-sz+sy);
+        ctx.closePath();
+        ctx.fillStyle=alphaColor(col, 0.55+b*0.05);
+        ctx.fill();
+        ctx.strokeStyle=alphaColor(col,0.9); ctx.lineWidth=0.4; ctx.stroke();
+        // right face
+        ctx.beginPath();
+        ctx.moveTo(px,    py-sz);
+        ctx.lineTo(px+sx, py-sz+sy);
+        ctx.lineTo(px+sx, py+sy);
+        ctx.lineTo(px,    py);
+        ctx.closePath();
+        ctx.fillStyle=alphaColor(col, 0.28+b*0.03);
+        ctx.fill(); ctx.stroke();
+        // left face
+        ctx.beginPath();
+        ctx.moveTo(px,    py-sz);
+        ctx.lineTo(px,    py);
+        ctx.lineTo(px-sx, py+sy);
+        ctx.lineTo(px-sx, py-sz+sy);
+        ctx.closePath();
+        ctx.fillStyle=alphaColor(col, 0.18+b*0.03);
+        ctx.fill(); ctx.stroke();
+      }
+    }
+  }
+  ctx.fillStyle='#f78166'; ctx.font='bold 13px Consolas';
+  ctx.fillText('[4, 6, 4]', ox+BS*sx+10, oy+BS*sy);
+  ctx.restore();
+}
+
+// ============ STEP 3: mean pooling animation ============
+function drawStep3(animT){
+  ctx.save();
+  const prog = easeInOut(clamp(animT,0,1));
+  const marginX=80, marginY=80;
+  const eColors=['#58a6ff','#3fb950','#f78166','#d2a8ff'];
+  const cellW=14, cellH=26, gap=4;
+  const tCount = Math.round(T - prog*(T-1));
+
+  ctx.fillStyle='#58a6ff'; ctx.font='bold 14px Consolas';
+  ctx.fillText('mean(dim=1)  [4,6,4] → [4,4]', marginX, marginY-32);
+  ctx.fillStyle='#8b949e'; ctx.font='12px Consolas';
+  ctx.fillText('t=6 个时间步向量压缩为1个均值向量', marginX, marginY-14);
+
+  for(let b=0;b<BS;b++){
+    const rowY = marginY + b*(cellH+18);
+    ctx.fillStyle=bsColors[b]; ctx.font='11px Consolas'; ctx.textAlign='right';
+    ctx.fillText('b'+b, marginX-8, rowY+cellH/2+4);
+    for(let t=0;t<tCount;t++){
+      for(let e=0;e<E;e++){
+        const x = marginX + t*(cellW*E+gap) + e*cellW;
+        const alpha = t===tCount-1 ? clamp(1-prog*2+0.2,0.2,1) : 1;
+        ctx.globalAlpha=alpha;
+        ctx.fillStyle=alphaColor(eColors[e],0.7);
+        ctx.fillRect(x, rowY, cellW-1, cellH);
+        ctx.strokeStyle=eColors[e]; ctx.lineWidth=0.5;
+        ctx.strokeRect(x, rowY, cellW-1, cellH);
+      }
+    }
+    ctx.globalAlpha=1;
+  }
+
+  // result shape badge
+  ctx.textAlign='left';
+  ctx.fillStyle='#f78166'; ctx.font='bold 13px Consolas';
+  const badgeX = marginX + 1*(cellW*E+gap)*T + 20;
+  ctx.fillText(prog>0.85?'[4, 4]':'[4, '+tCount+', 4]', marginX + tCount*(cellW*E+gap)+10, marginY+BS*(cellH+18)/2);
+  ctx.restore();
+}
+
+// ============ STEP 4: Linear classification ============
+function drawStep4(animT){
+  ctx.save();
+  const prog = easeInOut(clamp(animT,0,1));
+  const marginX=80, marginY=80;
+  const numClass=3;
+  const barMaxW=260;
+  ctx.fillStyle='#58a6ff'; ctx.font='bold 14px Consolas';
+  ctx.fillText('Linear(4→3)  分类得分', marginX, marginY-32);
+  ctx.fillStyle='#8b949e'; ctx.font='12px Consolas';
+  ctx.fillText('[4,4] → [4,3]  每个样本输出3个类别得分', marginX, marginY-14);
+
+  const classColors=['#58a6ff','#3fb950','#f78166'];
+  const classNames=['Class 0','Class 1','Class 2'];
+  const scores=[[2.1,0.3,-0.5],[0.2,1.8,0.4],[-0.3,0.5,2.4],[1.1,1.2,0.9]];
+
+  for(let b=0;b<BS;b++){
+    const baseY = marginY + b*90;
+    ctx.fillStyle=bsColors[b]; ctx.font='bold 11px Consolas'; ctx.textAlign='right';
+    ctx.fillText('batch '+b, marginX-8, baseY+30);
+    for(let c=0;c<numClass;c++){
+      const barW = barMaxW * clamp(prog*1.5-c*0.15,0,1) * Math.max(0,(scores[b][c]+1)/3.5);
+      const y = baseY + c*22;
+      ctx.fillStyle=alphaColor(classColors[c],0.7);
+      ctx.fillRect(marginX, y, barW, 18);
+      ctx.textAlign='left'; ctx.fillStyle=classColors[c]; ctx.font='11px Consolas';
+      ctx.fillText(classNames[c]+' '+scores[b][c].toFixed(1), marginX+barW+6, y+13);
+    }
+  }
+  ctx.textAlign='left';
+  ctx.fillStyle='#f78166'; ctx.font='bold 13px Consolas';
+  ctx.fillText('[4, 3]', marginX+barMaxW+60, marginY+BS*90/2);
+  ctx.restore();
+}
+
+// ============ 主控渲染 ============
+const STEPS = 4;
+let currentStep = 0;
+let animT = 0;
+let playing = false;
+let rafId = null;
+let lastTime = null;
+
+function render(ts){
+  if(lastTime===null) lastTime=ts;
+  const dt = (ts-lastTime)/1000; lastTime=ts;
+  if(playing){ animT = Math.min(animT+dt*0.6, 1); if(animT>=1) playing=false; }
+
+  ctx.clearRect(0,0,W,H);
+  if(currentStep===0) drawStep1(animT);
+  else if(currentStep===1) drawStep2(animT);
+  else if(currentStep===2) drawStep3(animT);
+  else if(currentStep===3) drawStep4(animT);
+
+  // step dots
+  const dotR=6, dotY=H-22, dotSpacing=22;
+  const totalW=(STEPS-1)*dotSpacing;
+  for(let i=0;i<STEPS;i++){
+    const dx = (W-totalW)/2 + i*dotSpacing;
+    ctx.beginPath(); ctx.arc(dx,dotY,dotR,0,Math.PI*2);
+    ctx.fillStyle = i===currentStep?'#58a6ff':'#30363d';
+    ctx.fill();
+    ctx.strokeStyle='#58a6ff'; ctx.lineWidth=1.5;
+    ctx.stroke();
+  }
+  rafId=requestAnimationFrame(render);
+}
+
+function goStep(n){
+  currentStep=clamp(n,0,STEPS-1);
+  animT=0; playing=true; lastTime=null;
+  document.getElementById('stepLabel').textContent='Step '+(currentStep+1)+' / '+STEPS;
+  document.getElementById('btnPrev').disabled=currentStep===0;
+  document.getElementById('btnNext').disabled=currentStep===STEPS-1;
+}
+
+document.getElementById('btnPrev').addEventListener('click',()=>goStep(currentStep-1));
+document.getElementById('btnNext').addEventListener('click',()=>goStep(currentStep+1));
+document.getElementById('btnPlay').addEventListener('click',function(){
+  playing=true; animT=0; lastTime=null;
+  this.textContent='▶ 重播';
+});
+
+goStep(0);
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
