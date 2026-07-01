@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Markdown → PDF 转换器</title>
+
+<!-- 解析 Markdown -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<!-- 代码高亮 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<!-- 数学公式 -->
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js"></script>
+<!-- PDF 导出 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+  :root {
+    --font-cjk: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+    --font-code: "Cascadia Code", "Consolas", monospace;
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --border: #e2e4e8;
+    --text: #1f2329;
+    --muted: #6b7280;
+    --accent: #4a6cf7;
+    --accent-soft: #eef1ff;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-cjk);
+    height: 100%;
+  }
+
+  /* ====== 顶部工具栏 ====== */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .toolbar h1 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 16px 0 0;
+    white-space: nowrap;
+  }
+
+  .toolbar .group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px 10px;
+  }
+
+  .toolbar label {
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .toolbar select, .toolbar input[type="number"] {
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    cursor: pointer;
+  }
+
+  .toolbar input[type="number"] { width: 48px; cursor: text; }
+
+  button {
+    border: none;
+    border-radius: var(--radius);
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+  }
+  button:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { opacity: .9; }
+
+  .btn-ghost {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: #ececf0; }
+
+  .spacer { flex: 1; }
+
+  #fileInput { display: none; }
+
+  .status {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* ====== 主体布局 ====== */
+  .main {
+    display: flex;
+    height: calc(100vh - 57px);
+  }
+
+  .pane {
+    flex: 1;
+    overflow: auto;
+    min-width: 0;
+  }
+
+  .pane-editor {
+    border-right: 1px solid var(--border);
+    background: var(--panel);
+  }
+
+  textarea#editor {
+    width: 100%;
+    height: 100%;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 24px;
+    font-family: var(--font-code);
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+    background: var(--panel);
+  }
+
+  .pane-preview {
+    background: var(--bg);
+    display: flex;
+    justify-content: center;
+    padding: 24px 0 60px;
+  }
+
+  /* ====== 导出 PDF 的纸张容器 ====== */
+  #page {
+    background: #fff;
+    width: 210mm;
+    min-height: 297mm;
+    padding: 12mm 14mm;
+    box-shadow: 0 2px 16px rgba(0,0,0,.08);
+    box-sizing: border-box;
+  }
+
+  /* ====== Markdown 渲染样式 ====== */
+  #renderArea {
+    font-family: var(--font-cjk);
+    font-size: 14.5px;
+    line-height: 1.85;
+    color: #24292e;
+    word-wrap: break-word;
+  }
+
+  #renderArea.handwrite {
+    font-family: var(--font-hand), var(--font-cjk);
+  }
+
+  #renderArea > *:first-child {
+    margin-top: 0 !important;
+  }
+
+  #renderArea h1, #renderArea h2, #renderArea h3,
+  #renderArea h4, #renderArea h5, #renderArea h6 {
+    font-weight: 600;
+    margin: 1.4em 0 .6em;
+    line-height: 1.4;
+  }
+  #renderArea h1 { font-size: 1.9em; border-bottom: 2px solid #eaecef; padding-bottom: .3em; }
+  #renderArea h2 { font-size: 1.5em; border-bottom: 1px solid #eaecef; padding-bottom: .25em; }
+  #renderArea h3 { font-size: 1.25em; }
+  #renderArea h4 { font-size: 1.1em; }
+  #renderArea p { margin: .8em 0; }
+  #renderArea a { color: var(--accent); text-decoration: none; }
+  #renderArea a:hover { text-decoration: underline; }
+
+  #renderArea ul, #renderArea ol { padding-left: 1.6em; margin: .6em 0; }
+  #renderArea li { margin: .35em 0; }
+  #renderArea li > p { margin: .3em 0; }
+
+  #renderArea blockquote {
+    margin: 1em 0;
+    padding: .3em 1em;
+    border-left: 4px solid var(--accent);
+    background: var(--accent-soft);
+    color: #4b5563;
+  }
+  #renderArea blockquote p { margin: .4em 0; }
+
+  #renderArea hr {
+    border: none;
+    border-top: 1px solid #e2e4e8;
+    margin: 1.8em 0;
+  }
+
+  #renderArea img {
+    max-width: 100%;
+    border-radius: 6px;
+    margin: .6em 0;
+  }
+
+  #renderArea table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+    font-size: .92em;
+  }
+  #renderArea th, #renderArea td {
+    border: 1px solid #dfe2e5;
+    padding: 6px 12px;
+  }
+  #renderArea th {
+    background: #f6f8fa;
+    font-weight: 600;
+  }
+  #renderArea tr:nth-child(even) { background: #fafbfc; }
+
+  /* 行内代码 + 代码块：英文/代码统一使用 YaheiMonaco（自定义字体名） */
+  #renderArea code {
+    font-family: var(--font-code);
+    background: #f0f1f3;
+    padding: .15em .4em;
+    border-radius: 4px;
+    font-size: .88em;
+  }
+  #renderArea pre {
+    background: #f6f8fa;
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 1em 0;
+    border: 1px solid #e8eaed;
+  }
+  #renderArea pre code {
+    background: none;
+    padding: 0;
+    font-size: .85em;
+    line-height: 1.6;
+  }
+
+  #renderArea input[type="checkbox"] {
+    margin-right: .4em;
+  }
+
+  #renderArea .task-list-item { list-style: none; margin-left: -1.4em; }
+
+  /* 打勾 emoji / 上标下标等细节交给 marked 默认处理 */
+
+  /* ====== 拖拽蒙层 ====== */
+  #dropOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(74,108,247,.12);
+    border: 3px dashed var(--accent);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: var(--accent);
+    font-weight: 600;
+    z-index: 999;
+    pointer-events: none;
+  }
+
+  @media (max-width: 900px) {
+    .main { flex-direction: column; height: auto; }
+    .pane-editor { border-right: none; border-bottom: 1px solid var(--border); }
+    textarea#editor { height: 50vh; }
+    #page { width: 100%; }
+  }
+
+  /* 导出 PDF 时使用的打印态：隐藏滚动条阴影等 */
+  .exporting #page { box-shadow: none; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>📝 Markdown → PDF</h1>
+
+  <div class="group">
+    <label>中文字体</label>
+    <select id="fontModeSelect">
+      <option value="normal">黑体（常规）</option>
+      <option value="handwrite">手写体</option>
+    </select>
+  </div>
+
+  <div class="group">
+    <label>正文字号</label>
+    <input type="number" id="fontSizeInput" min="10" max="24" value="14.5" step="0.5">
+    <span style="font-size:12px;color:var(--muted)">pt</span>
+  </div>
+
+  <div class="group">
+    <label>页边距</label>
+    <input type="number" id="marginInput" min="5" max="40" value="12" step="1">
+    <span style="font-size:12px;color:var(--muted)">mm</span>
+  </div>
+
+  <div class="group" id="exportDirGroup" title="设置后所有 PDF 自动存入该目录并覆盖同名文件">
+    <label>导出目录</label>
+    <span id="exportDirName" style="font-size:13px;color:var(--text);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">未设置</span>
+    <button class="btn-ghost" id="btnPickDir" style="padding:3px 8px;font-size:12px;">选择…</button>
+    <button class="btn-ghost" id="btnClearDir" style="padding:3px 8px;font-size:12px;display:none;" title="清除目录设置">✕</button>
+  </div>
+
+  <div class="spacer"></div>
+
+  <span class="status" id="statusText"></span>
+  <input type="file" id="fileInput" accept=".md,.markdown,.txt">
+  <button class="btn-ghost" id="btnOpen">打开 .md 文件</button>
+  <button class="btn-ghost" id="btnSampleToggle">加载示例</button>
+  <button class="btn-primary" id="btnExport">导出 PDF</button>
+</div>
+
+<div class="main">
+  <div class="pane pane-editor">
+    <textarea id="editor" placeholder="在此粘贴或输入 Markdown 文本…
+也可以点击右上角“打开 .md 文件”，或直接把 .md 文件拖到这个窗口里。" spellcheck="false"></textarea>
+  </div>
+  <div class="pane pane-preview">
+    <div id="page">
+      <div id="renderArea"></div>
+    </div>
+  </div>
+</div>
+
+<div id="dropOverlay">📄 松开鼠标以导入 Markdown 文件</div>
+
+<!--
+  ============================================================
+  字体说明（重要，请阅读）：
+  ============================================================
+  本文件不包含字体二进制数据（避免单文件体积过大、且字体版权问题），
+  而是引用系统/常见字体名称，浏览器会自动按以下优先级匹配本机已安装的字体：
+
+  1. "中文-手写体" 对应 --font-hand，默认尝试匹配：
+     站酷快乐体 / 庞门正道标题体 / 江城圆体 / 鸿雷板书 / 华文行楷 / 楷体
+     如果你本机/系统安装了其中任意一种手写风格字体，会自动生效。
+     如果你拥有手写字体的 woff2 文件，可以在下方 @font-face 中替换为 base64
+     内嵌（见下方注释），这样可以保证在任何电脑、任何环境下显示一致，
+     并且导出的 PDF 也会带有该字体效果。
+
+  2. "中文-黑体" 对应 --font-cjk，使用系统默认黑体：
+     微软雅黑 / 苹方 / Noto Sans SC
+
+  3. 英文与代码字体 --font-code 默认尝试 "更纱黑体 YaHei Mono"（俗称 YaheiMonaco）。
+     该字体并非系统自带，需要你本机安装后浏览器才能识别到。
+     下载地址（开源项目 Sarasa Gothic / 更纱黑体）：
+     https://github.com/be5invis/Sarasa-Gothic
+     建议下载 "Sarasa Mono SC" 或网传整合的 "YaheiMonaco" 字重后安装到系统字体。
+     安装后无需改动代码，浏览器会自动识别并应用。
+
+  若希望 100% 离线、不依赖用户本机字体安装情况，可以把字体文件转换为 base64
+  后填入下面的 @font-face 注释模板中，实现「真正单文件自包含」。
+-->
+<style>
+  @font-face {
+    font-family: "中文手写体";
+    src: local("站酷快乐体"), local("庞门正道标题体"), local("江城圆体 Regular"),
+         local("鸿雷板书"), local("华文行楷"), local("楷体");
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "YaheiMonaco";
+    src: local("Sarasa Mono SC"), local("更纱黑体 Mono SC"), local("YaHei Mono"),
+         local("YaheiMonaco"), local("Cascadia Code");
+    font-display: swap;
+  }
+
+  /*
+  ====== 如果你有字体文件，想内嵌到本 HTML（彻底自包含），取消下面注释并替换 base64 ======
+
+  @font-face {
+    font-family: "中文手写体内嵌";
+    src: url(data:font/woff2;base64,你的手写字体base64数据) format("woff2");
+  }
+  @font-face {
+    font-family: "YaheiMonaco内嵌";
+    src: url(data:font/woff2;base64,你的YaheiMonaco字体base64数据) format("woff2");
+  }
+
+  之后把下面 :root 中的 --font-hand / --font-code 改成对应的内嵌字体名即可。
+  */
+
+  :root {
+    --font-hand: "中文手写体", "华文行楷", "楷体", cursive;
+  }
+  /* 代码/英文字体优先尝试本机已安装的 YaheiMonaco，找不到则降级为常见等宽字体 */
+  :root {
+    --font-code: "YaheiMonaco", "Sarasa Mono SC", "Cascadia Code", "Consolas", "Menlo", monospace;
+  }
+</style>
+
+<script>
+(function () {
+  "use strict";
+
+  const editor = document.getElementById('editor');
+  const renderArea = document.getElementById('renderArea');
+  const page = document.getElementById('page');
+  const statusText = document.getElementById('statusText');
+  const fontModeSelect = document.getElementById('fontModeSelect');
+  const fontSizeInput = document.getElementById('fontSizeInput');
+  const marginInput = document.getElementById('marginInput');
+  const fileInput = document.getElementById('fileInput');
+  const dropOverlay = document.getElementById('dropOverlay');
+
+  // ---------- Markdown 渲染配置 ----------
+  marked.setOptions({
+    breaks: true,
+    gfm: true,
+    headerIds: true,
+    mangle: false,
+    highlight: function (code, lang) {
+      try {
+        if (lang && hljs.getLanguage(lang)) {
+          return hljs.highlight(code, { language: lang }).value;
+        }
+        return hljs.highlightAuto(code).value;
+      } catch (e) {
+        return code;
+      }
+    }
+  });
+
+  let renderTimer = null;
+  function scheduleRender() {
+    clearTimeout(renderTimer);
+    renderTimer = setTimeout(render, 180);
+  }
+
+  function render() {
+    const src = editor.value;
+    let html = '';
+    try {
+      html = marked.parse(src);
+    } catch (e) {
+      html = '<p style="color:red">Markdown 解析出错：' + (e.message || e) + '</p>';
+    }
+    renderArea.innerHTML = html;
+
+    // GFM 任务列表勾选框禁用编辑但保留视觉
+    renderArea.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.disabled = true;
+    });
+
+    // 代码高亮（marked 的 highlight 选项已处理大部分，这里兜底再跑一次）
+    renderArea.querySelectorAll('pre code').forEach(block => {
+      try { hljs.highlightElement(block); } catch (e) {}
+    });
+
+    // 渲染数学公式
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise([renderArea]).catch(() => {});
+    }
+
+    statusText.textContent = '已更新预览 · ' + new Date().toLocaleTimeString();
+  }
+
+  editor.addEventListener('input', scheduleRender);
+
+  // ---------- 字体切换 ----------
+  fontModeSelect.addEventListener('change', () => {
+    renderArea.classList.toggle('handwrite', fontModeSelect.value === 'handwrite');
+  });
+
+  // ---------- 字号 / 页边距 ----------
+  fontSizeInput.addEventListener('input', () => {
+    const v = parseFloat(fontSizeInput.value) || 14.5;
+    renderArea.style.fontSize = v + 'pt';
+  });
+  marginInput.addEventListener('input', () => {
+    const v = parseFloat(marginInput.value);
+    if (!isNaN(v)) {
+      page.style.padding = v + 'mm';
+    }
+  });
+
+  // ---------- 打开文件 ----------
+  document.getElementById('btnOpen').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) loadFile(file);
+  });
+
+  function loadFile(file) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      editor.value = ev.target.result;
+      render();
+      statusText.textContent = '已载入：' + file.name;
+    };
+    reader.readAsText(file, 'utf-8');
+  }
+
+  // ---------- 拖拽导入 ----------
+  let dragCounter = 0;
+  window.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragCounter++;
+    dropOverlay.style.display = 'flex';
+  });
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('dragleave', () => {
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      dropOverlay.style.display = 'none';
+    }
+  });
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    dropOverlay.style.display = 'none';
+    const file = e.dataTransfer.files[0];
+    if (file) loadFile(file);
+  });
+
+  // ---------- 示例文本 ----------
+  const sampleMD = `# Markdown → PDF 示例文档
+
+这是一个**功能全面**的 Markdown 演示，支持 *斜体*、~~删除线~~、\`行内代码\`，以及 [链接](https://example.com)。
+
+## 1. 列表
+
+- 无序列表项 A
+- 无序列表项 B
+  - 嵌套子项
+- 任务列表
+  - [x] 已完成事项
+  - [ ] 待办事项
+
+1. 有序列表第一项
+2. 有序列表第二项
+
+## 2. 引用与分隔线
+
+> 这是一段引用文字，用来测试引用块样式。
+> 可以多行。
+
+---
+
+## 3. 代码块（应使用 YaheiMonaco 等宽字体）
+
+\`\`\`javascript
+function hello(name) {
+  console.log(\`Hello, \${name}! 你好，\${name}！\`);
+  return name.length > 0;
+}
+\`\`\`
+
+\`\`\`python
+def fibonacci(n):
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
+\`\`\`
+
+## 4. 表格
+
+| 功能 | 是否支持 | 备注 |
+|------|:---:|------|
+| 标题 | ✅ | h1-h6 |
+| 表格 | ✅ | GFM 风格 |
+| 数学公式 | ✅ | 见下方 |
+| 任务列表 | ✅ | checkbox |
+
+## 5. 数学公式
+
+行内公式：当 $a \\neq 0$ 时，方程 $ax^2+bx+c=0$ 的解为：
+
+$$x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$$
+
+## 6. 中文手写体测试
+
+可以在工具栏切换"中文字体"为**手写体**，观察这段中文——春风又绿江南岸，明月何时照我还——的字体变化效果。英文 The quick brown fox jumps over the lazy dog 与代码部分始终使用等宽字体。
+
+## 7. 图片（示例占位）
+
+\`\`\`
+![描述文字](https://via.placeholder.com/600x200)
+\`\`\`
+（实际使用时替换为真实图片链接或 base64）
+`;
+
+  document.getElementById('btnSampleToggle').addEventListener('click', () => {
+    editor.value = sampleMD;
+    render();
+  });
+
+  // 首次默认加载示例，方便用户一眼看到效果
+  editor.value = sampleMD;
+  render();
+  renderArea.style.fontSize = fontSizeInput.value + 'pt';
+
+  // ---------- 默认导出目录（File System Access API）----------
+  let exportDirHandle = null;
+
+  const exportDirNameEl = document.getElementById('exportDirName');
+  const btnPickDir = document.getElementById('btnPickDir');
+  const btnClearDir = document.getElementById('btnClearDir');
+
+  function updateDirUI() {
+    if (exportDirHandle) {
+      exportDirNameEl.textContent = exportDirHandle.name;
+      exportDirNameEl.title = exportDirHandle.name;
+      btnClearDir.style.display = '';
+    } else {
+      exportDirNameEl.textContent = '未设置';
+      exportDirNameEl.title = '';
+      btnClearDir.style.display = 'none';
+    }
+  }
+
+  btnPickDir.addEventListener('click', async () => {
+    if (!window.showDirectoryPicker) {
+      alert('当前浏览器不支持目录选择（请使用 Chrome/Edge 86+）');
+      return;
+    }
+    try {
+      exportDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      updateDirUI();
+      statusText.textContent = '已设置导出目录：' + exportDirHandle.name;
+    } catch (e) {
+      if (e.name !== 'AbortError') alert('选择目录失败：' + (e.message || e));
+    }
+  });
+
+  btnClearDir.addEventListener('click', () => {
+    exportDirHandle = null;
+    updateDirUI();
+    statusText.textContent = '已清除导出目录设置';
+  });
+
+  // 写入指定目录（覆盖同名文件）
+  async function saveToDir(dirHandle, filename, pdfBlob) {
+    const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(pdfBlob);
+    await writable.close();
+  }
+
+  // 从 Markdown 源文本中提取第一个标题作为文件名
+  function getTitleFromMarkdown(src) {
+    const lines = src.split('\n');
+    for (const line of lines) {
+      const m = line.match(/^\s*#{1,6}\s+(.+?)\s*$/);
+      if (m && m[1]) {
+        return m[1]
+          .replace(/[#*`_~]/g, '')           // 去掉残留的 markdown 符号
+          .replace(/[\\/:*?"<>|]/g, ' ')     // 去掉文件名非法字符
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 80);
+      }
+    }
+    return '';
+  }
+
+  function makeFilename() {
+    const title = getTitleFromMarkdown(editor.value);
+    if (title) return title + '.pdf';
+    return 'markdown-export-' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.pdf';
+  }
+
+  // ---------- 导出 PDF ----------
+  document.getElementById('btnExport').addEventListener('click', exportPDF);
+
+  async function exportPDF() {
+    const btn = document.getElementById('btnExport');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '正在生成…';
+    document.body.classList.add('exporting');
+
+    try {
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        await window.MathJax.typesetPromise([renderArea]);
+      }
+    } catch (e) {}
+
+    try {
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+    } catch (e) {}
+
+    await new Promise(r => setTimeout(r, 80));
+
+    try {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+
+      const A4_W = 210, A4_H = 297;
+      const marginMM = parseFloat(marginInput.value) || 12;
+      const contentWmm = A4_W - marginMM * 2;
+      const contentHmm = A4_H - marginMM * 2;
+
+      // 关键修复：中文不能用 jsPDF 的 html() 文本渲染（内置字体不支持中文，会乱码），
+      // 必须用 html2canvas 把内容渲染成图片再贴进 PDF，这样字体永远显示正确。
+      // 为了保证页面利用率，这里：
+      //   1. 截图时不包含 #page 的内边距（只截 renderArea 本身），由 PDF 的 margin 来控制边距，避免双重边距浪费空间。
+      //   2. 用更高分辨率(scale)截图保证清晰度。
+      //   3. 按"每页可容纳的像素高度"精确切割长图，分页填满每一页，不留大片空白。
+      const scale = 2.2;
+      const canvas = await html2canvas(renderArea, {
+        scale: scale,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        windowWidth: renderArea.scrollWidth
+      });
+
+      // 像素 -> mm 的换算：渲染宽度(px) 对应 contentWmm(mm)
+      const pxPerMM = canvas.width / contentWmm;
+      const pageContentPx = Math.floor(contentHmm * pxPerMM); // 每页能容纳的像素高度
+
+      let renderedPx = 0;
+      let first = true;
+      const totalPx = canvas.height;
+
+      while (renderedPx < totalPx) {
+        let sliceHeightPx = Math.min(pageContentPx, totalPx - renderedPx);
+
+        // 避免把一行文字从中间切断：在切割边界向上回退，找一段"较空白"的行（简单启发式：
+        // 检测该行像素是否接近纯白，是则认为是安全切割点）。
+        if (renderedPx + sliceHeightPx < totalPx) {
+          sliceHeightPx = findSafeBreak(canvas, renderedPx, sliceHeightPx);
+        }
+
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sliceHeightPx;
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+        ctx.drawImage(canvas, 0, renderedPx, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
+
+        const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.95);
+        const sliceHmm = sliceHeightPx / pxPerMM;
+
+        if (!first) pdf.addPage();
+        pdf.addImage(sliceData, 'JPEG', marginMM, marginMM, contentWmm, sliceHmm);
+
+        renderedPx += sliceHeightPx;
+        first = false;
+      }
+
+      const filename = makeFilename();
+
+      // 获取 PDF 的 Blob 数据
+      const pdfBlob = pdf.output('blob');
+
+      if (exportDirHandle) {
+        // 有默认目录：直接写入并覆盖同名文件
+        try {
+          await saveToDir(exportDirHandle, filename, pdfBlob);
+          statusText.textContent = 'PDF 已导出至 ' + exportDirHandle.name + '/' + filename + '（已覆盖同名）';
+        } catch (e) {
+          if (e.name === 'NotAllowedError') {
+            // 权限过期，重新申请
+            try {
+              await exportDirHandle.requestPermission({ mode: 'readwrite' });
+              await saveToDir(exportDirHandle, filename, pdfBlob);
+              statusText.textContent = 'PDF 已导出至 ' + exportDirHandle.name + '/' + filename;
+            } catch (e2) {
+              alert('写入目录权限被拒绝，已降级为下载：' + (e2.message || e2));
+              pdf.save(filename);
+              statusText.textContent = 'PDF 已下载：' + filename;
+            }
+          } else {
+            throw e;
+          }
+        }
+      } else if (window.showSaveFilePicker) {
+        // 无默认目录但支持 showSaveFilePicker：弹出保存对话框，选定位置后可覆盖
+        try {
+          const fileHandle = await window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [{ description: 'PDF 文件', accept: { 'application/pdf': ['.pdf'] } }]
+          });
+          const writable = await fileHandle.createWritable();
+          await writable.write(pdfBlob);
+          await writable.close();
+          statusText.textContent = 'PDF 已导出：' + filename;
+        } catch (e) {
+          if (e.name !== 'AbortError') {
+            // 降级为普通下载
+            pdf.save(filename);
+            statusText.textContent = 'PDF 已下载：' + filename;
+          }
+        }
+      } else {
+        // 最终降级：普通下载
+        pdf.save(filename);
+        statusText.textContent = 'PDF 已导出：' + filename;
+      }
+    } catch (err) {
+      console.error(err);
+      alert('导出 PDF 时出错：' + (err.message || err));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
+      document.body.classList.remove('exporting');
+    }
+  }
+
+  // 在 [start, start+maxHeight] 范围内，从底部向上寻找一行"接近纯白"的像素行作为安全切割点，
+  // 避免文字、表格行、代码行被从中间切断。找不到就直接用 maxHeight（极端情况下退化为硬切）。
+  function findSafeBreak(canvas, start, maxHeight) {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const minHeight = Math.floor(maxHeight * 0.6); // 至少保留 60% 高度，避免分页过碎
+    const searchStart = Math.min(start + maxHeight, canvas.height);
+
+    for (let y = searchStart; y > start + minHeight; y -= 4) {
+      const row = ctx.getImageData(0, y, w, 1).data;
+      let isBlank = true;
+      for (let i = 0; i < row.length; i += 16) { // 抽样检测，提升性能
+        if (row[i] < 245 || row[i+1] < 245 || row[i+2] < 245) {
+          isBlank = false;
+          break;
+        }
+      }
+      if (isBlank) return y - start;
+    }
+    return maxHeight; // 没找到合适的空白行，直接硬切
+  }
+
+})();
+</script>
+
+</body>
+</html>
